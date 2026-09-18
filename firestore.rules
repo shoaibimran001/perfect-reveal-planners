@@ -4,7 +4,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == 'nanimuthu044@gmail.com';
+        && request.auth.token.email == 'nanimuthu044@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'nanimuthu044@gmail.com'
+        && request.auth.token.email_verified == true;
     }
 
     function isValidPublicSubmission() {
@@ -38,6 +45,59 @@ service cloud.firestore {
     match /publishedReviews/{reviewId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read: if true;
+      allow create, update: if isOwner()
+        && request.resource.data.keys().hasOnly([
+          'name', 'price', 'priceSuffix', 'description', 'features', 'badge',
+          'featured', 'visible', 'order', 'whatsappText', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.priceSuffix is string
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 1000
+        && request.resource.data.features is list
+        && request.resource.data.features.size() >= 1
+        && request.resource.data.badge is string
+        && request.resource.data.featured is bool
+        && request.resource.data.visible is bool
+        && request.resource.data.order is number
+        && request.resource.data.order >= 0
+        && request.resource.data.whatsappText is string
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isOwner();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isOwner()
+        && docId == 'plansPage'
+        && request.resource.data.keys().hasOnly(['note', 'updatedAt'])
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && request.resource.data.updatedAt == request.time;
+    }
+
+    match /planClicks/{clickId} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'planId', 'planName', 'price', 'source', 'createdAt'
+        ])
+        && request.resource.data.planId is string
+        && request.resource.data.planId.size() > 0
+        && request.resource.data.planName is string
+        && request.resource.data.planName.size() > 0
+        && request.resource.data.price is number
+        && request.resource.data.price >= 0
+        && request.resource.data.source == 'plans-page'
+        && request.resource.data.createdAt == request.time;
+      allow read: if isAdmin();
+      allow update, delete: if false;
     }
 
     match /admins/{userId} {

@@ -1,7 +1,9 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+import { getAnalytics, isSupported, logEvent } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js';
 import {
   addDoc,
   collection,
+  doc,
   getDocs,
   onSnapshot,
   getFirestore,
@@ -9,7 +11,404 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 import { firebaseConfig, isFirebaseConfigured } from './firebase-config.js';
 
-const db = isFirebaseConfigured() ? getFirestore(initializeApp(firebaseConfig)) : null;
+const app = isFirebaseConfigured() ? initializeApp(firebaseConfig) : null;
+const db = app ? getFirestore(app) : null;
+const analyticsReady = app
+  ? isSupported()
+    .then(supported => supported ? getAnalytics(app) : null)
+    .catch(() => null)
+  : Promise.resolve(null);
+const viewedPlanIds = new Set();
+const trafficSource = getTrafficSource();
+const WHATSAPP_NUMBER = '919059740220';
+const DEFAULT_PLAN_NOTE = 'Plan modifications start at ₹69. Additional charges may apply for custom requests.';
+const PLANS_CACHE_KEY = 'perfectReveal.plans.v1';
+const PLAN_NOTE_CACHE_KEY = 'perfectReveal.plansNote.v1';
+const DEFAULT_PLANS = [
+  {
+    id: 'base-plan',
+    name: 'Base Plan',
+    price: 1234,
+    priceSuffix: '/ surprise',
+    description: 'Everything essential for a beautiful, thoughtful surprise.',
+    features: ['Customised Cake', 'Rose Flower Bouquet', 'Complimentary Gift', 'Surprise at Doorstep'],
+    badge: '',
+    featured: false,
+    visible: true,
+    order: 10,
+    whatsappText: ''
+  },
+  {
+    id: 'gold-plan',
+    name: 'Gold Plan',
+    price: 1599,
+    priceSuffix: '/ surprise',
+    description: 'Elevated elegance with a keepsake to remember the moment.',
+    features: ['Customised Cake', 'Rose Bouquet', 'Complimentary Gift', 'Photo Frame (8×12)', 'Surprise at Doorstep'],
+    badge: '',
+    featured: false,
+    visible: true,
+    order: 20,
+    whatsappText: ''
+  },
+  {
+    id: 'teddy-plan',
+    name: 'Teddy Plan',
+    price: 1499,
+    priceSuffix: '/ surprise',
+    description: 'Our popular choice — treats, roses and a cuddly surprise.',
+    features: ['Customised Cake', 'Rose Flower Bouquet', 'Complimentary Gift', 'Teddy Man Surprise', 'Surprise at Doorstep'],
+    badge: 'Most Popular',
+    featured: true,
+    visible: true,
+    order: 30,
+    whatsappText: ''
+  },
+  {
+    id: 'teddy-premium',
+    name: 'Teddy Premium',
+    price: 2499,
+    priceSuffix: '/ surprise',
+    description: 'Premium teddy experience — keepsakes, prints and bigger smiles.',
+    features: ['Customised Cake', 'Rose Flower Bouquet', 'Complimentary Gift', 'Teddy Man Surprise', 'Photo Frame (12×18)', 'Instant Hand Print', 'Surprise at Doorstep'],
+    badge: '',
+    featured: false,
+    visible: true,
+    order: 40,
+    whatsappText: ''
+  },
+  {
+    id: 'mega-teddy-plan',
+    name: 'Mega Teddy Plan',
+    price: 2799,
+    priceSuffix: '/ surprise',
+    description: 'Our most complete experience — big surprises and lasting keepsakes.',
+    features: ['Customised Cake', 'Rose Flower Bouquet', 'Photo Frame', 'Hand Print', 'Complimentary Gift', 'Surprise at Doorstep', 'Sweet & Simple Decoration for Cake Cutting'],
+    badge: '',
+    featured: false,
+    visible: true,
+    order: 50,
+    whatsappText: ''
+  }
+];
+
+let renderedPlans = false;
+
+function getTrafficSource() {
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get('utm_source');
+  const medium = params.get('utm_medium');
+  const campaign = params.get('utm_campaign');
+  if (source || medium || campaign) {
+    return { source: source || 'unknown', medium: medium || 'unknown', campaign: campaign || 'none' };
+  }
+  if (document.referrer) {
+    try {
+      return { source: new URL(document.referrer).hostname, medium: 'referral', campaign: 'none' };
+    } catch (error) {
+      return { source: 'unknown', medium: 'unknown', campaign: 'none' };
+    }
+  }
+  return { source: 'direct', medium: 'none', campaign: 'none' };
+}
+
+function readJsonCache(key) {
+  try {
+    const cached = window.localStorage.getItem(key);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeJsonCache(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Ignore storage failures so private/incognito modes do not break rendering.
+  }
+}
+
+function readTextCache(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeTextCache(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    // Ignore storage failures so private/incognito modes do not break rendering.
+  }
+}
+
+function formatRupees(value) {
+  const amount = Number(value) || 0;
+  return `₹${new Intl.NumberFormat('en-IN').format(amount)}`;
+}
+
+function sortedVisiblePlans(plans) {
+  return plans
+    .filter(plan => plan && plan.visible === true)
+    .sort((first, second) => (Number(first.order) || 0) - (Number(second.order) || 0));
+}
+
+function createPlanCard(plan, index) {
+  const card = document.createElement('div');
+  card.className = `plan-card${plan.featured ? ' featured' : ''} reveal reveal-delay-${(index % 3) + 1}`;
+  card.dataset.planId = String(plan.id || '');
+  card.dataset.planName = String(plan.name || '');
+
+  if (plan.badge) {
+    const badge = document.createElement('div');
+    badge.className = 'plan-badge';
+    badge.textContent = `✦ ${plan.badge}`;
+    card.appendChild(badge);
+  }
+
+  const name = document.createElement('div');
+  name.className = 'plan-name';
+  name.textContent = plan.name;
+  card.appendChild(name);
+
+  const price = document.createElement('div');
+  price.className = 'plan-price';
+  const rupee = document.createElement('sup');
+  rupee.textContent = '₹';
+  price.appendChild(rupee);
+  price.appendChild(document.createTextNode(new Intl.NumberFormat('en-IN').format(Number(plan.price) || 0)));
+  const suffix = document.createElement('span');
+  suffix.textContent = ` ${plan.priceSuffix || '/ surprise'}`;
+  price.appendChild(suffix);
+  card.appendChild(price);
+
+  const description = document.createElement('p');
+  description.className = 'plan-desc';
+  description.textContent = plan.description || '';
+  card.appendChild(description);
+
+  const features = document.createElement('ul');
+  features.className = 'plan-features';
+  (Array.isArray(plan.features) ? plan.features : []).forEach(feature => {
+    const item = document.createElement('li');
+    item.textContent = feature;
+    features.appendChild(item);
+  });
+  card.appendChild(features);
+
+  const button = document.createElement('button');
+  button.className = 'plan-btn';
+  button.type = 'button';
+  const buttonText = document.createElement('span');
+  buttonText.textContent = 'Select Plan';
+  button.appendChild(buttonText);
+  button.addEventListener('click', () => {
+    trackPlanClick(plan);
+    trackWhatsAppClick(button, plan);
+    const message = plan.whatsappText?.trim()
+      || `Hi! I'd like to book the ${plan.name} (${formatRupees(plan.price)})`;
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+  });
+  card.appendChild(button);
+
+  return card;
+}
+
+function trackPlanClick(plan) {
+  if (!db) return;
+  addDoc(collection(db, 'planClicks'), {
+    planId: String(plan.id || ''),
+    planName: String(plan.name || ''),
+    price: Number(plan.price) || 0,
+    source: 'plans-page',
+    createdAt: serverTimestamp()
+  }).catch(() => {
+    // Analytics must never prevent a visitor from contacting the business.
+  });
+  analyticsReady.then(analytics => {
+    if (!analytics) return;
+    logEvent(analytics, 'plan_click', {
+      content_type: 'plan',
+      item_id: String(plan.id || ''),
+      item_name: String(plan.name || ''),
+      source: trafficSource.source,
+      medium: trafficSource.medium,
+      campaign: trafficSource.campaign
+    });
+  });
+}
+
+function trackPlanView(card) {
+  const planId = card.dataset.planId;
+  if (!planId || viewedPlanIds.has(planId)) return;
+  viewedPlanIds.add(planId);
+  analyticsReady.then(analytics => {
+    if (!analytics) return;
+    logEvent(analytics, 'plan_view', {
+      content_type: 'plan',
+      item_id: planId,
+      item_name: card.dataset.planName || '',
+      source: trafficSource.source,
+      medium: trafficSource.medium,
+      campaign: trafficSource.campaign
+    });
+  });
+}
+
+const planViewObserver = typeof IntersectionObserver === 'undefined'
+  ? null
+  : new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) trackPlanView(entry.target);
+    });
+  }, { threshold: 0.5 });
+
+function trackWhatsAppClick(button, plan = null) {
+  analyticsReady.then(analytics => {
+    if (!analytics) return;
+    const eventData = {
+      source: trafficSource.source,
+      medium: trafficSource.medium,
+      campaign: trafficSource.campaign,
+      button_name: button.getAttribute('aria-label') || button.textContent.trim().slice(0, 40) || 'WhatsApp'
+    };
+    if (plan) {
+      eventData.plan_id = String(plan.id || '');
+      eventData.plan_name = String(plan.name || '');
+      eventData.conversion_step = 'plan_to_whatsapp';
+    }
+    logEvent(analytics, 'whatsapp_click', eventData);
+  });
+}
+
+function setupBookingAnalytics() {
+  document.querySelectorAll('[data-whatsapp-booking], a[href^="https://wa.me/"]').forEach(button => {
+    button.addEventListener('click', () => trackWhatsAppClick(button));
+  });
+}
+
+analyticsReady.then(analytics => {
+  if (!analytics) return;
+  logEvent(analytics, 'page_view', {
+    page_title: document.title,
+    page_location: window.location.href,
+    source: trafficSource.source,
+    medium: trafficSource.medium,
+    campaign: trafficSource.campaign
+  });
+});
+
+function renderPlanSkeleton() {
+  const grid = document.getElementById('plansGrid');
+  if (!grid) return;
+  grid.textContent = '';
+  for (let index = 0; index < 3; index += 1) {
+    const card = document.createElement('div');
+    card.className = `plan-card reveal reveal-delay-${index + 1}`;
+    const name = document.createElement('div');
+    name.className = 'plan-name';
+    name.textContent = 'Loading plan...';
+    const description = document.createElement('p');
+    description.className = 'plan-desc';
+    description.textContent = 'Fetching the latest package details.';
+    card.append(name, description);
+    grid.appendChild(card);
+  }
+}
+
+function renderPlans(plans) {
+  const grid = document.getElementById('plansGrid');
+  const footerPlans = document.getElementById('footerPlans');
+  if (!grid || !footerPlans) return;
+
+  const visiblePlans = sortedVisiblePlans(plans);
+  grid.textContent = '';
+  footerPlans.textContent = '';
+
+  if (!visiblePlans.length) {
+    const empty = document.createElement('div');
+    empty.className = 'plan-card';
+    const name = document.createElement('div');
+    name.className = 'plan-name';
+    name.textContent = 'No plans available';
+    const description = document.createElement('p');
+    description.className = 'plan-desc';
+    description.textContent = 'Please check back soon or contact us on WhatsApp.';
+    empty.append(name, description);
+    grid.appendChild(empty);
+    renderedPlans = true;
+    return;
+  }
+
+  visiblePlans.forEach((plan, index) => {
+    const card = createPlanCard(plan, index);
+    grid.appendChild(card);
+    if (typeof observer !== 'undefined') observer.observe(card);
+    if (planViewObserver) planViewObserver.observe(card);
+
+    const item = document.createElement('li');
+    const link = document.createElement('a');
+    link.href = '#plans';
+    link.textContent = `${plan.name} — ${formatRupees(plan.price)}${plan.badge ? ` (${plan.badge})` : ''}`;
+    item.appendChild(link);
+    footerPlans.appendChild(item);
+  });
+  renderedPlans = true;
+}
+
+function renderPlanNote(note) {
+  const noteElement = document.getElementById('plansNote');
+  if (!noteElement) return;
+  noteElement.textContent = `Note: ${note || DEFAULT_PLAN_NOTE}`;
+}
+
+function renderDefaultPlans() {
+  renderPlans(DEFAULT_PLANS);
+  renderPlanNote(DEFAULT_PLAN_NOTE);
+}
+
+function loadPlans() {
+  const cachedPlans = readJsonCache(PLANS_CACHE_KEY);
+  const cachedNote = readTextCache(PLAN_NOTE_CACHE_KEY);
+  if (Array.isArray(cachedPlans)) {
+    renderPlans(cachedPlans);
+  } else {
+    renderPlanSkeleton();
+  }
+  renderPlanNote(cachedNote || DEFAULT_PLAN_NOTE);
+
+  if (!db) {
+    if (!renderedPlans) renderDefaultPlans();
+    return;
+  }
+
+  const fallbackTimer = window.setTimeout(() => {
+    if (!renderedPlans) renderDefaultPlans();
+  }, 3000);
+
+  onSnapshot(collection(db, 'plans'), snapshot => {
+    window.clearTimeout(fallbackTimer);
+    const plans = snapshot.docs.map(planDoc => ({ id: planDoc.id, ...planDoc.data() }));
+    writeJsonCache(PLANS_CACHE_KEY, plans);
+    renderPlans(plans);
+  }, error => {
+    window.clearTimeout(fallbackTimer);
+    if (!renderedPlans) renderDefaultPlans();
+  });
+
+  onSnapshot(doc(db, 'settings', 'plansPage'), snapshot => {
+    const note = snapshot.exists() && typeof snapshot.data().note === 'string'
+      ? snapshot.data().note
+      : DEFAULT_PLAN_NOTE;
+    writeTextCache(PLAN_NOTE_CACHE_KEY, note);
+    renderPlanNote(note);
+  }, error => {
+    renderPlanNote(cachedNote || DEFAULT_PLAN_NOTE);
+  });
+}
 
 // PARTICLES
 const canvas = document.getElementById('particles');
@@ -98,12 +497,6 @@ let currentSlide = 0;
 let totalSlides = 0;
 let rotationTimer;
 
-function escapeHtml(value) {
-  const element = document.createElement('div');
-  element.textContent = String(value || '');
-  return element.innerHTML;
-}
-
 function reviewDateValue(review) {
   if (review.createdAt && typeof review.createdAt.toMillis === 'function') {
     return review.createdAt.toMillis();
@@ -150,31 +543,33 @@ function renderReviews(reviews) {
   currentSlide = 0;
   const slidesContainer = document.getElementById('testiSlides');
   const navContainer = document.getElementById('testiNav');
-  slidesContainer.innerHTML = '';
-  navContainer.innerHTML = '';
+  slidesContainer.textContent = '';
+  navContainer.textContent = '';
 
   topReviews.forEach((review, idx) => {
     const stars = '★'.repeat(Number(review.rating));
     const slide = document.createElement('div');
     slide.className = 'testi-slide';
-    slide.innerHTML = `
-      <div class="testi-card">
-        ${idx === 0 ? '<div class="top-badge">Top review</div>' : ''}
-        <div class="testi-quote">"</div>
-        <div class="testi-stars">${stars}</div>
-        <p class="testi-text">${escapeHtml(review.text)}</p>
-        <div class="testi-author">${escapeHtml(review.name)}</div>
-        <div class="testi-role">${escapeHtml(review.role)}</div>
-        <div class="owner-response">
-          <div class="owner-response-header">
-            <span class="owner-name">Perfect Reveal Planners responded</span>
-            <span class="expand-icon">▼</span>
-          </div>
-          <div class="owner-response-text" style="display:none">${escapeHtml(review.ownerResponse || 'Thank you for your feedback!')}</div>
-        </div>
-      </div>
-    `;
-    slide.querySelector('.owner-response-header').addEventListener('click', event => {
+    const card = document.createElement('div');
+    card.className = 'testi-card';
+    if (idx === 0) appendTextElement(card, 'div', 'top-badge', 'Top review');
+    appendTextElement(card, 'div', 'testi-quote', '"');
+    appendTextElement(card, 'div', 'testi-stars', stars);
+    appendTextElement(card, 'p', 'testi-text', review.text);
+    appendTextElement(card, 'div', 'testi-author', review.name);
+    appendTextElement(card, 'div', 'testi-role', review.role);
+    const response = document.createElement('div');
+    response.className = 'owner-response';
+    const responseHeader = document.createElement('div');
+    responseHeader.className = 'owner-response-header';
+    appendTextElement(responseHeader, 'span', 'owner-name', 'Perfect Reveal Planners responded');
+    appendTextElement(responseHeader, 'span', 'expand-icon', '▼');
+    const responseText = appendTextElement(response, 'div', 'owner-response-text', review.ownerResponse || 'Thank you for your feedback!');
+    responseText.style.display = 'none';
+    response.insertBefore(responseHeader, responseText);
+    card.appendChild(response);
+    slide.appendChild(card);
+    responseHeader.addEventListener('click', event => {
       toggleOwnerResponse(event.currentTarget);
     });
     slidesContainer.appendChild(slide);
@@ -193,7 +588,7 @@ function renderReviews(reviews) {
 
 function loadReviews() {
   if (!db) {
-    document.getElementById('testiSlides').innerHTML = '<div class="testi-slide"><div class="testi-card"><p class="testi-text">Online reviews are not configured.</p></div></div>';
+    renderReviewState('Online reviews are not configured.');
     return;
   }
 
@@ -201,13 +596,33 @@ function loadReviews() {
   onSnapshot(collection(db, 'publishedReviews'), snapshot => {
     const reviews = snapshot.docs.map(document => ({ id: document.id, ...document.data() }));
     if (!reviews.length) {
-      document.getElementById('testiSlides').innerHTML = '<div class="testi-slide"><div class="testi-card"><p class="testi-text">No reviews published yet.</p></div></div>';
+      renderReviewState('No reviews published yet.');
       return;
     }
     renderReviews(reviews);
   }, error => {
-    document.getElementById('testiSlides').innerHTML = '<div class="testi-slide"><div class="testi-card"><p class="testi-text">Reviews are temporarily unavailable.</p></div></div>';
+    renderReviewState('Reviews are temporarily unavailable.');
   });
+}
+
+function appendTextElement(parent, tagName, className, text) {
+  const element = document.createElement(tagName);
+  element.className = className;
+  element.textContent = text || '';
+  parent.appendChild(element);
+  return element;
+}
+
+function renderReviewState(text) {
+  const slides = document.getElementById('testiSlides');
+  slides.textContent = '';
+  const slide = document.createElement('div');
+  slide.className = 'testi-slide';
+  const card = document.createElement('div');
+  card.className = 'testi-card';
+  appendTextElement(card, 'p', 'testi-text', text);
+  slide.appendChild(card);
+  slides.appendChild(slide);
 }
 
 function showReviewMessage(text, type) {
@@ -259,7 +674,11 @@ async function submitReview(event) {
 window.changeSlide = changeSlide;
 window.submitReview = submitReview;
 
-document.addEventListener('DOMContentLoaded', loadReviews);
+document.addEventListener('DOMContentLoaded', () => {
+  loadPlans();
+  loadReviews();
+  setupBookingAnalytics();
+});
 
 // WHATSAPP GREETING
 (() => {

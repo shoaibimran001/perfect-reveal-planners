@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
   <title>Owner Dashboard - Perfect Reveal Planners</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&amp;family=Jost:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+	  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&amp;family=Cinzel:wght@400;600;700&amp;family=Jost:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root { --gold: #c9a84c; --cream: #fdf8ee; --bg: #1a1a1a; --line: rgba(201,168,76,.2); }
@@ -48,7 +48,35 @@
     .form-group input, .form-group textarea, .form-group select { background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 3px; color: var(--cream); padding: .8rem; width: 100%; }
     .form-group textarea { min-height: 100px; resize: vertical; }
     .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--gold); outline: 0; }
-    .password-field { position: relative; }
+    .form-grid { display: grid; gap: 1rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .checkbox-row { align-items: center; display: flex; gap: .6rem; margin-bottom: 1rem; }
+    .checkbox-row input { width: auto; }
+    .plan-labels { display: flex; flex-wrap: wrap; gap: .5rem; margin: .7rem 0 1rem; }
+    .plan-label { border: 1px solid var(--line); border-radius: 3px; color: rgba(253,248,238,.7); font-size: .72rem; letter-spacing: .08em; padding: .25rem .55rem; text-transform: uppercase; }
+    .plan-label.featured { border-color: var(--gold); color: var(--gold); }
+    .plan-label.hidden { border-color: #f87171; color: #fca5a5; }
+    .feature-row { align-items: center; display: grid; gap: .6rem; grid-template-columns: 1fr auto auto auto; margin-bottom: .65rem; }
+	    .feature-row input { min-width: 0; }
+	    .feature-row .action-btn { padding: .48rem .75rem; }
+	    .advanced-panel { border-top: 1px solid var(--line); margin: 1rem 0; padding-top: 1rem; }
+	    .advanced-panel summary { color: var(--gold); cursor: pointer; font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+	    .plan-editor-grid { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); }
+	    .plan-preview { background: rgba(0,0,0,.18); border: 1px solid var(--line); padding: 1rem; position: sticky; top: 1rem; }
+	    .plan-preview h4 { color: var(--gold); font-size: .8rem; letter-spacing: .1em; margin-bottom: 1rem; text-transform: uppercase; }
+	    .plan-preview .plan-card { background: #0A0806; padding: 2rem 1.5rem; position: relative; }
+	    .plan-preview .plan-card.featured { background: rgba(201,168,76,0.06); }
+	    .plan-preview .plan-badge { font-size: .58rem; letter-spacing: .25em; text-transform: uppercase; color: #0A0806; background: linear-gradient(135deg,#8B6914,#C9A84C); padding: .28rem .8rem; display: inline-block; margin-bottom: 1.2rem; }
+	    .plan-preview .plan-name { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 400; color: var(--cream); margin-bottom: .2rem; }
+	    .plan-preview .plan-price { font-family: 'Cinzel', serif; font-size: 2.1rem; color: var(--gold); margin-bottom: .3rem; }
+	    .plan-preview .plan-price sup { font-size: 1rem; vertical-align: super; }
+	    .plan-preview .plan-price span { font-size: .8rem; font-family: 'Jost', sans-serif; color: rgba(253,248,238,.35); font-weight: 300; }
+	    .plan-preview .plan-desc { font-size: .78rem; color: rgba(253,248,238,.38); margin-bottom: 1.8rem; line-height: 1.6; }
+	    .plan-preview .plan-features { list-style: none; margin-bottom: 2rem; }
+	    .plan-preview .plan-features li { font-size: .84rem; color: rgba(253,248,238,.62); padding: .42rem 0; border-bottom: 1px solid rgba(201,168,76,.07); display: flex; align-items: center; gap: .6rem; font-weight: 300; }
+	    .plan-preview .plan-features li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+	    .plan-preview .plan-btn { width: 100%; padding: .82rem; font-family: 'Cinzel', serif; font-size: .67rem; letter-spacing: .14em; text-transform: uppercase; border: 1px solid rgba(201,168,76,.35); background: transparent; color: var(--gold); }
+	    .plan-preview .plan-card.featured .plan-btn { background: linear-gradient(135deg,#8B6914,#C9A84C); color: #0A0806; }
+	    .password-field { position: relative; }
     .password-field input { padding-right: 4.4rem; }
     .password-toggle { background: transparent; border: 0; color: var(--gold); cursor: pointer; font-size: .76rem; font-weight: 600; letter-spacing: .08em; padding: .4rem; position: absolute; right: .45rem; text-transform: uppercase; top: 50%; transform: translateY(-50%); }
     .password-toggle:hover, .password-toggle:focus { color: var(--cream); outline: 0; }
@@ -70,9 +98,11 @@
       body { padding: 1rem; padding-top: 5rem; }
       .logout-btn { right: 1rem; top: 1rem; }
       .tabs { overflow-x: auto; }
-      .tab-button { padding: .8rem; white-space: nowrap; }
-      .stats { grid-template-columns: 1fr; }
-    }
+	      .tab-button { padding: .8rem; white-space: nowrap; }
+	      .stats { grid-template-columns: 1fr; }
+	      .form-grid, .feature-row, .plan-editor-grid { grid-template-columns: 1fr; }
+	      .plan-preview { position: static; }
+	    }
   </style>
 </head>
 <body>
@@ -110,6 +140,7 @@
       <button class="tab-button active" data-tab="pending" onclick="showTab('pending', this)">Pending Reviews</button>
       <button class="tab-button" data-tab="approved" onclick="showTab('approved', this)">Published Reviews</button>
       <button class="tab-button" data-tab="add-manual" onclick="showTab('add-manual', this)">Add Review</button>
+      <button class="tab-button" data-tab="plans-admin" onclick="showTab('plans-admin', this)">Plans</button>
     </nav>
 
     <section id="pending" class="tab-content active"><div id="pendingReviews"></div></section>
@@ -133,6 +164,55 @@
         <div class="form-group"><label for="manualText">Review Text *</label><textarea id="manualText" required></textarea></div>
         <div class="form-group"><label for="manualResponse">Owner Response</label><textarea id="manualResponse"></textarea></div>
         <div class="form-actions"><button class="btn-submit" type="submit">Publish Review</button><button class="outline-btn" type="reset">Clear</button></div>
+      </form>
+    </section>
+    <section id="plans-admin" class="tab-content">
+	      <div class="toolbar">
+	        <button class="outline-btn" id="importPlansButton" type="button" style="display:none;">Import Default Plans</button>
+	        <button class="btn-submit" id="newPlanButton" type="button">Add Plan</button>
+	      </div>
+        <div id="planAnalytics" class="form-panel" style="margin-bottom:1.5rem;"><h3>Plan click analysis</h3><div class="empty-message">Loading click data...</div></div>
+	      <form id="plansNoteForm" class="form-panel" style="margin-bottom:1.5rem;">
+	        <h3>Page Note</h3>
+	        <div class="form-group"><label for="plansPageNote">Plans Page Note *</label><textarea id="plansPageNote" required></textarea></div>
+	        <div class="form-actions"><button class="btn-submit" id="savePlansNoteButton" type="submit">Save Note</button></div>
+	      </form>
+	      <div id="plansList"></div>
+	      <form id="planForm" class="form-panel" style="display:none; margin-top: 1.5rem;">
+	        <h3 id="planFormTitle">Add Plan</h3>
+	        <input type="hidden" id="planId">
+	        <div class="plan-editor-grid">
+	          <div>
+	            <div class="form-grid">
+	              <div class="form-group"><label for="planName">Plan Name *</label><input type="text" id="planName" required></div>
+	              <div class="form-group"><label for="planPrice">Price *</label><input type="number" id="planPrice" min="0" step="1" required></div>
+	            </div>
+	            <div class="form-grid">
+	              <div class="form-group"><label for="planPriceSuffix">Price Suffix *</label><input type="text" id="planPriceSuffix" value="/ surprise" required></div>
+	              <div class="form-group"><label for="planBadge">Badge Text</label><input type="text" id="planBadge" placeholder="e.g., Most Popular"></div>
+	            </div>
+	            <div class="form-group"><label for="planDescription">Description *</label><textarea id="planDescription" required></textarea></div>
+	            <div class="form-group">
+	              <label>Features *</label>
+	              <div id="planFeatures"></div>
+	              <button class="outline-btn" id="addFeatureButton" type="button">Add Feature</button>
+	            </div>
+	            <div class="checkbox-row"><input type="checkbox" id="planFeatured"><label for="planFeatured" style="margin:0;">Featured</label></div>
+	            <div class="checkbox-row"><input type="checkbox" id="planVisible" checked><label for="planVisible" style="margin:0;">Visible</label></div>
+	            <details class="advanced-panel">
+	              <summary>Advanced</summary>
+	              <div class="form-group" style="margin-top:1rem;"><label for="planWhatsappText">Custom WhatsApp Message</label><textarea id="planWhatsappText"></textarea></div>
+	            </details>
+	          </div>
+	          <aside class="plan-preview">
+	            <h4>Live Preview</h4>
+	            <div id="planPreviewCard"></div>
+	          </aside>
+	        </div>
+	        <div class="form-actions">
+	          <button class="btn-submit" id="savePlanButton" type="submit">Save Plan</button>
+          <button class="outline-btn" id="cancelPlanButton" type="button">Cancel</button>
+        </div>
       </form>
     </section>
   </main>
