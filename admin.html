@@ -95,13 +95,30 @@
     .login-panel p { color: rgba(253,248,238,.6); margin-bottom: 1.8rem; }
     .toolbar { align-items: center; display: flex; justify-content: flex-end; margin-bottom: 1.2rem; }
     @media (max-width: 640px) {
-      body { padding: 1rem; padding-top: 5rem; }
-      .logout-btn { right: 1rem; top: 1rem; }
-      .tabs { overflow-x: auto; }
-	      .tab-button { padding: .8rem; white-space: nowrap; }
-	      .stats { grid-template-columns: 1fr; }
-	      .form-grid, .feature-row, .plan-editor-grid { grid-template-columns: 1fr; }
-	      .plan-preview { position: static; }
+        body { padding: 1rem; padding-top: 4.7rem; }
+        .admin-header { margin-bottom: 1.5rem; padding-bottom: 1.25rem; }
+        .admin-header h1 { font-size: 2.2rem; }
+        .admin-header p { font-size: .82rem; line-height: 1.5; }
+        .logout-btn { border-radius: 999px; font-size: .78rem; padding: .6rem 1rem; right: 1rem; top: 1rem; }
+        .tabs { gap: .35rem; margin: 0 -1rem 1.4rem; overflow-x: auto; padding: 0 1rem; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab-button { flex: 0 0 auto; font-size: .78rem; padding: .8rem .7rem; white-space: nowrap; }
+        .stats { gap: .65rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1.2rem; }
+        .stat-box, .review-card, .form-panel { padding: 1rem; }
+        .stat-number { font-size: 1.7rem; }
+        .stat-label { font-size: .62rem; letter-spacing: .04em; }
+        .review-card { margin-bottom: .9rem; }
+        .review-actions, .form-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .review-actions .action-btn, .form-actions > button { min-height: 2.75rem; width: 100%; }
+        .toolbar { justify-content: stretch; }
+        .toolbar > button { flex: 1; min-height: 2.75rem; }
+        .form-grid, .plan-editor-grid { grid-template-columns: 1fr; }
+        .feature-row { align-items: stretch; grid-template-columns: minmax(0, 1fr) auto auto; }
+        .feature-row input { grid-column: 1 / -1; min-height: 2.75rem; }
+        .feature-row .action-btn { min-height: 2.5rem; padding: .45rem .7rem; }
+        .plan-preview { position: static; }
+        .plan-preview .plan-card { padding: 1.5rem 1rem; }
+        .empty-message { padding: 2rem 1rem; }
 	    }
   </style>
 </head>
