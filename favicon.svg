@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Perfect Reveal Planners">
+  <rect width="64" height="64" rx="14" fill="#0a0806"/>
+  <path d="M32 49C18 40 13 33 13 24.5A10.5 10.5 0 0 1 32 18a10.5 10.5 0 0 1 19 6.5C51 33 46 40 32 49Z" fill="none" stroke="#c9a84c" stroke-width="3"/>
+  <path d="M32 18V49M20 28h24" fill="none" stroke="#c9a84c" stroke-width="2" stroke-linecap="round"/>
+</svg>
